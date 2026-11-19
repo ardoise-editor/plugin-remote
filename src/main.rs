@@ -1,4 +1,4 @@
-//! The Remote Files plugin of SimpleEdit: files on another machine, over
+//! The Remote Files plugin of Ardoise: files on another machine, over
 //! SSH. The system's `ssh` does the work (keys, the agent and
 //! `~/.ssh/config` apply). A remote file is copied to a local folder, opened
 //! there like any file, and sent back each time it is saved.

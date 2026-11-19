@@ -1,14 +1,14 @@
 {
   "id": "simpleedit.remote",
   "name": { "en": "Remote Files", "fr": "Fichiers distants" },
-  "version": "1.1.0",
+  "version": "1.1.1",
   "api": 1,
   "description": {
     "en": "Open and edit files of another machine over SSH: they go back at each save",
     "fr": "Ouvrir et modifier les fichiers d'une autre machine par SSH : ils repartent à chaque enregistrement"
   },
-  "author": "SimpleEdit",
-  "repository": "simple-edit-app/plugin-remote",
+  "author": "Ardoise Editor",
+  "repository": "ardoise-editor/plugin-remote",
   "license": "MIT",
   "command": ["bin/remote"],
   "events": ["file_saved"],
