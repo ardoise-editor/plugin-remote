@@ -9,10 +9,10 @@ mod text;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use ardoise_plugin::protocol::{Context, InitializeParams, Settings, UiEvent};
+use ardoise_plugin::ui::*;
+use ardoise_plugin::{run, Host, Plugin};
 use serde::{Deserialize, Serialize};
-use simpleedit_plugin::protocol::{Context, InitializeParams, Settings, UiEvent};
-use simpleedit_plugin::ui::*;
-use simpleedit_plugin::{run, Host, Plugin};
 
 use ssh::{Entry, RemoteFile};
 use text::t;
@@ -423,10 +423,9 @@ mod tests {
             .unwrap(),
         );
         let bytes = out.0.lock().unwrap().clone();
-        let said =
-            simpleedit_plugin::protocol::read_message(&mut std::io::BufReader::new(&bytes[..]))
-                .unwrap()
-                .unwrap();
+        let said = ardoise_plugin::protocol::read_message(&mut std::io::BufReader::new(&bytes[..]))
+            .unwrap()
+            .unwrap();
         let text = format!("{said:?}");
         assert!(text.contains("editor/setOrigin"), "{text}");
         assert!(text.contains("me@box:/srv/a.txt"), "{text}");

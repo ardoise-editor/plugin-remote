@@ -3,6 +3,25 @@
 version = 4
 
 [[package]]
+name = "ardoise-plugin"
+version = "0.12.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "ardoise-remote"
+version = "1.1.1"
+dependencies = [
+ "ardoise-plugin",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "bitflags"
 version = "2.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -182,26 +201,6 @@ checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
 dependencies = [
  "errno",
  "libc",
-]
-
-[[package]]
-name = "simpleedit-plugin"
-version = "0.10.0"
-source = "git+https://github.com/simple-edit-app/plugin-sdk?tag=v0.10.0#a4401640aff448eb718834882b3597fbfc2dcc93"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "simpleedit-remote"
-version = "1.1.1"
-dependencies = [
- "serde",
- "serde_json",
- "simpleedit-plugin",
- "tempfile",
- "tokio",
 ]
 
 [[package]]

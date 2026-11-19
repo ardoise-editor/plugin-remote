@@ -19,9 +19,9 @@ pub struct Entry {
     pub is_dir: bool,
 }
 
-/// What `ssh` is run as (`SIMPLEEDIT_SSH` says another program, for tests).
+/// What `ssh` is run as (`ARDOISE_SSH` says another program, for tests).
 fn program() -> String {
-    std::env::var("SIMPLEEDIT_SSH").unwrap_or_else(|_| "ssh".to_string())
+    std::env::var("ARDOISE_SSH").unwrap_or_else(|_| "ssh".to_string())
 }
 
 /// Whether `host` can be given to `ssh` without being taken for an option.
@@ -244,7 +244,7 @@ pub async fn upload(
         &file.host,
         &format!(
             "p={path}; t={tmp}; {check}cat > \"$t\" && {{ chmod --reference=\"$p\" \"$t\" 2>/dev/null || chmod $(stat -f %Lp \"$p\") \"$t\" 2>/dev/null; true; }} && mv -f -- \"$t\" \"$p\" || {{ rm -f -- \"$t\"; exit 1; }}; {STAT_DATE}; true",
-            tmp = quote(&format!("{}.simpleedit-tmp", file.path)),
+            tmp = quote(&format!("{}.ardoise-tmp", file.path)),
             path = quote(&file.path)
         ),
         Some(bytes),
@@ -262,7 +262,7 @@ pub async fn upload(
 }
 
 /// What the remote check says when the file is not the one that was read.
-const CHANGED: &str = "simpleedit-changed";
+const CHANGED: &str = "ardoise-changed";
 
 #[cfg(test)]
 mod tests {
@@ -346,7 +346,7 @@ mod tests {
     fn folders_are_listed_files_read_and_written_and_a_change_is_noticed() {
         let _guard = SSH.lock().unwrap_or_else(|e| e.into_inner());
         let dir = tempfile::tempdir().unwrap();
-        std::env::set_var("SIMPLEEDIT_SSH", fake_ssh(dir.path()));
+        std::env::set_var("ARDOISE_SSH", fake_ssh(dir.path()));
         let site = dir.path().join("site");
         std::fs::create_dir_all(site.join("sub dir")).unwrap();
         std::fs::write(site.join("b.txt"), "bee\n").unwrap();
@@ -408,6 +408,6 @@ mod tests {
             let down = list("down", "/").await.unwrap_err();
             assert!(down.contains("no route"), "{down}");
         });
-        std::env::remove_var("SIMPLEEDIT_SSH");
+        std::env::remove_var("ARDOISE_SSH");
     }
 }
