@@ -186,8 +186,8 @@ dependencies = [
 
 [[package]]
 name = "simpleedit-plugin"
-version = "0.4.2"
-source = "git+https://github.com/simple-edit-app/plugin-sdk?tag=v0.4.2#9fa273e5a3c202978bc45634794c4c30c1a6eade"
+version = "0.10.0"
+source = "git+https://github.com/simple-edit-app/plugin-sdk?tag=v0.10.0#a4401640aff448eb718834882b3597fbfc2dcc93"
 dependencies = [
  "serde",
  "serde_json",
@@ -195,7 +195,7 @@ dependencies = [
 
 [[package]]
 name = "simpleedit-remote"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "serde",
  "serde_json",

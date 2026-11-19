@@ -31,6 +31,13 @@ struct Link {
     date: Option<u64>,
 }
 
+impl Link {
+    /// `host:/path`, as the editor shows where the copy comes from.
+    fn origin(&self) -> String {
+        format!("{}:{}", self.host, self.path)
+    }
+}
+
 /// What the plugin keeps: the machines it went to, the copies it made.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 struct Kept {
@@ -146,6 +153,9 @@ impl Remote {
         );
         self.remember_host(&file.host);
         self.error = None;
+        if let Some(link) = self.kept.links.get(&local) {
+            host.set_origin(&local, Some(link.origin()));
+        }
         if let Err(e) = host.open_file(&local, None) {
             self.error = Some(e.message);
         }
@@ -250,7 +260,7 @@ fn write_private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 }
 
 impl Plugin for Remote {
-    fn initialize(&mut self, _: &Host, params: &InitializeParams) {
+    fn initialize(&mut self, host: &Host, params: &InitializeParams) {
         self.data_dir = params.data_dir.clone();
         self.french = params.settings.locale.starts_with("fr");
         self.kept = std::fs::read_to_string(self.kept_file())
@@ -260,6 +270,10 @@ impl Plugin for Remote {
         // The copies that are gone are forgotten.
         self.kept.links.retain(|local, _| local.is_file());
         self.host = self.kept.hosts.first().cloned().unwrap_or_default();
+        // Each copy says where it comes from, in place of its folder.
+        for (local, link) in &self.kept.links {
+            host.set_origin(local, Some(link.origin()));
+        }
     }
 
     fn command(&mut self, host: &Host, command: &str, _: &Context) {
@@ -367,6 +381,55 @@ mod tests {
         again.kept.links.retain(|local, _| local.is_file());
         assert_eq!(again.kept.links.len(), 1);
         assert_eq!(again.kept.links[&copy].date, Some(5));
+    }
+
+    #[test]
+    fn each_copy_says_where_it_comes_from_once_the_plugin_starts() {
+        use std::io::Write;
+        use std::sync::{Arc, Mutex};
+        #[derive(Clone, Default)]
+        struct Shared(Arc<Mutex<Vec<u8>>>);
+        impl Write for Shared {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().write(buf)
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let copy = dir.path().join("a.txt");
+        std::fs::write(&copy, "x").unwrap();
+        let mut r = Remote::new();
+        r.data_dir = dir.path().to_path_buf();
+        r.kept.links.insert(
+            copy.clone(),
+            Link {
+                host: "me@box".into(),
+                path: "/srv/a.txt".into(),
+                date: None,
+            },
+        );
+        r.remember_host("me@box");
+        let out = Shared::default();
+        let host = Host::to_writer(out.clone());
+        let mut again = Remote::new();
+        again.initialize(
+            &host,
+            &serde_json::from_value(serde_json::json!({
+                "api": 1, "app_version": "1", "settings": {"locale": "en", "dark": false},
+                "workspace": [], "plugin_dir": dir.path(), "data_dir": dir.path()
+            }))
+            .unwrap(),
+        );
+        let bytes = out.0.lock().unwrap().clone();
+        let said =
+            simpleedit_plugin::protocol::read_message(&mut std::io::BufReader::new(&bytes[..]))
+                .unwrap()
+                .unwrap();
+        let text = format!("{said:?}");
+        assert!(text.contains("editor/setOrigin"), "{text}");
+        assert!(text.contains("me@box:/srv/a.txt"), "{text}");
     }
 
     #[test]
