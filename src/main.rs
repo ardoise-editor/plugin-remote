@@ -219,7 +219,10 @@ impl Remote {
             input("host", &self.host, t(f, "host")).on_submit("go"),
             row([
                 input("dir", &self.dir, t(f, "folder")).on_submit("go"),
-                button(t(f, "go"), "go").button_style(ButtonStyle::Primary),
+                // Nowhere to go until a machine is named.
+                button(t(f, "go"), "go")
+                    .button_style(ButtonStyle::Primary)
+                    .enabled(!self.host.trim().is_empty()),
             ])
             .spacing(6.0),
         ];
@@ -344,6 +347,21 @@ fn main() -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn go_is_off_until_a_machine_is_named() {
+        let go_on = |r: &Remote| {
+            let page = serde_json::to_string(&r.view()).unwrap();
+            // A button that is off has `"enabled":false` after its action.
+            !page.contains("\"action\":\"go\",\"style\":\"primary\",\"enabled\":false")
+        };
+        let mut r = Remote::new();
+        assert!(!go_on(&r));
+        r.host = "  ".into();
+        assert!(!go_on(&r));
+        r.host = "me@box".into();
+        assert!(go_on(&r));
+    }
 
     #[test]
     fn what_is_kept_survives_a_restart_and_gone_copies_are_forgotten() {
