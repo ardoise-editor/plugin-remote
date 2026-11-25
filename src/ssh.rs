@@ -201,6 +201,9 @@ pub async fn list(host: &str, dir: &str) -> Result<(String, Vec<Entry>), String>
 /// system.
 const STAT_DATE: &str = "stat -c %Y -- \"$p\" 2>/dev/null || stat -f %m -- \"$p\" 2>/dev/null";
 
+/// What [`download`] fails with when the path is a folder.
+pub const IS_FOLDER: &str = "ARDOISE_IS_FOLDER";
+
 /// The bytes of a file, and when it was last changed: one connection, the
 /// date first and the bytes after it.
 pub async fn download(file: &RemoteFile, limit: usize) -> Result<(Vec<u8>, Option<u64>), String> {
@@ -209,7 +212,7 @@ pub async fn download(file: &RemoteFile, limit: usize) -> Result<(Vec<u8>, Optio
     let out = run(
         &file.host,
         &format!(
-            "p={}; {{ {STAT_DATE}; }} | head -n 1; echo; cat -- \"$p\"",
+            "p={}; if [ -d \"$p\" ]; then echo {IS_FOLDER} >&2; exit 1; fi; {{ {STAT_DATE}; }} | head -n 1; echo; cat -- \"$p\"",
             quote(&file.path)
         ),
         None,
@@ -265,16 +268,16 @@ pub async fn upload(
 const CHANGED: &str = "ardoise-changed";
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use std::sync::Mutex;
 
     /// The tests that stand in for `ssh` share the variable that says which.
-    static SSH: Mutex<()> = Mutex::new(());
+    pub(crate) static SSH: Mutex<()> = Mutex::new(());
 
     /// A program that runs the command it is given on this machine, as an
     /// `ssh` would on the other.
-    fn fake_ssh(dir: &std::path::Path) -> PathBuf {
+    pub(crate) fn fake_ssh(dir: &std::path::Path) -> PathBuf {
         let script = dir.join("fake-ssh");
         std::fs::write(
             &script,

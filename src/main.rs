@@ -109,25 +109,36 @@ impl Remote {
         } else {
             self.dir.trim().to_string()
         };
-        match self.runtime.block_on(ssh::list(&typed, &dir)) {
+        self.browse(&typed, &dir);
+        None
+    }
+
+    /// Lists a folder of a machine.
+    fn browse(&mut self, host: &str, dir: &str) {
+        match self.runtime.block_on(ssh::list(host, dir)) {
             Ok((resolved, entries)) => {
                 self.dir = resolved;
                 self.entries = entries;
                 self.error = None;
-                self.remember_host(&typed);
+                self.remember_host(host);
             }
             Err(e) => {
                 self.entries.clear();
                 self.error = Some(e);
             }
         }
-        None
     }
 
     /// Copies the file here and opens the copy.
     fn open(&mut self, host: &Host, file: RemoteFile) {
         let (bytes, date) = match self.runtime.block_on(ssh::download(&file, MAX_BYTES)) {
             Ok(found) => found,
+            // A whole name that is a folder: its entries are listed.
+            Err(e) if e == ssh::IS_FOLDER => {
+                self.host = file.host.clone();
+                self.browse(&file.host, &file.path);
+                return;
+            }
             Err(e) => {
                 self.error = Some(e);
                 return;
@@ -219,10 +230,9 @@ impl Remote {
             input("host", &self.host, t(f, "host")).on_submit("go"),
             row([
                 input("dir", &self.dir, t(f, "folder")).on_submit("go"),
-                // Nowhere to go until a machine is named.
-                button(t(f, "go"), "go")
-                    .button_style(ButtonStyle::Primary)
-                    .enabled(!self.host.trim().is_empty()),
+                // Always on: the panel is not drawn again while a name is
+                // typed (it would overwrite what is being typed).
+                button(t(f, "go"), "go").button_style(ButtonStyle::Primary),
             ])
             .spacing(6.0),
         ];
@@ -349,18 +359,31 @@ mod tests {
     use super::*;
 
     #[test]
-    fn go_is_off_until_a_machine_is_named() {
-        let go_on = |r: &Remote| {
-            let page = serde_json::to_string(&r.view()).unwrap();
-            // A button that is off has `"enabled":false` after its action.
-            !page.contains("\"action\":\"go\",\"style\":\"primary\",\"enabled\":false")
-        };
+    fn go_can_be_pressed_as_soon_as_a_name_is_typed() {
+        // Typing does not draw the panel again: the button must already work.
+        let page = serde_json::to_string(&Remote::new().view()).unwrap();
+        assert!(!page.contains("\"enabled\":false"), "{page}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_whole_name_that_is_a_folder_lists_it() {
+        let _guard = ssh::tests::SSH.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("ARDOISE_SSH", ssh::tests::fake_ssh(dir.path()));
+        let folder = dir.path().join("srv");
+        std::fs::create_dir(&folder).unwrap();
+        std::fs::write(folder.join("a.txt"), "x").unwrap();
         let mut r = Remote::new();
-        assert!(!go_on(&r));
-        r.host = "  ".into();
-        assert!(!go_on(&r));
-        r.host = "me@box".into();
-        assert!(go_on(&r));
+        r.data_dir = dir.path().to_path_buf();
+        r.host = format!("me@box:{}/", folder.display());
+        let file = r.connect().expect("a whole name");
+        r.open(&Host::to_writer(std::io::sink()), file);
+        std::env::remove_var("ARDOISE_SSH");
+        assert_eq!(r.error, None);
+        assert_eq!(r.host, "me@box");
+        assert_eq!(r.entries.len(), 1);
+        assert_eq!(r.entries[0].name, "a.txt");
     }
 
     #[test]
